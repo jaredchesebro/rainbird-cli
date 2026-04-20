@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rainbird-cli"
+version = "1.0.0"
+description = "CLI for Rain Bird ESP-Me irrigation controller"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.13",
+    "pyrainbird>=6.3",
+    "python-dotenv>=1.2",
+    "rich>=15.0",
+    "typer>=0.24",
+]
+
+[project.scripts]
+rainbird = "rainbird:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
