@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Python 3.13 via Homebrew (`/opt/homebrew/bin/python3.13`)
 - Venv at `.venv/` — always use `.venv/bin/python` or activate first
 - Credentials in `.env`: `RAINBIRD_HOST=<host>`, `RAINBIRD_PASSWORD=<password>`
+- Optional: `RAINBIRD_RAIN_SENSOR=true` — enables rain sensor API calls and output (default: disabled; device can't detect sensor presence)
 
 ## Running the CLI
 

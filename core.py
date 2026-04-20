@@ -69,6 +69,7 @@ def main(
     host: Optional[str] = typer.Option(None, envvar="RAINBIRD_HOST", help="Controller IP address"),
     password: Optional[str] = typer.Option(None, envvar="RAINBIRD_PASSWORD", help="Controller password"),
     debug: bool = typer.Option(False, "--debug", help="Show full error tracebacks"),
+    rain_sensor: Optional[str] = typer.Option(None, envvar="RAINBIRD_RAIN_SENSOR", hidden=True),
 ):
     if not host or not password:
         err_console.print("[red]Error:[/red] RAINBIRD_HOST and RAINBIRD_PASSWORD required (.env or --host/--password).")
@@ -76,3 +77,4 @@ def main(
     _ctx["host"] = host
     _ctx["password"] = password
     _ctx["debug"] = debug
+    _ctx["rain_sensor"] = (rain_sensor or "").lower() == "true"

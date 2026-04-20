@@ -8,7 +8,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from core import app, console, err_console, get_controller, handle_errors, run_async
+from core import _ctx, app, console, err_console, get_controller, handle_errors, run_async
 
 
 @app.command()
@@ -21,7 +21,7 @@ def status():
                 irrigating = await controller.get_current_irrigation()
                 zone_states = await controller.get_zone_states()
                 available = await controller.get_available_stations()
-                rain_sensor = await controller.get_rain_sensor_state()
+                rain_sensor = await controller.get_rain_sensor_state() if _ctx.get("rain_sensor") else None
                 rain_delay = await controller.get_rain_delay()
                 device_time = await controller.get_current_time()
                 device_date = await controller.get_current_date()
@@ -34,7 +34,12 @@ def status():
         else:
             irrigation_str = "[dim]Idle[/dim]"
 
-        sensor_str = "[yellow]Triggered[/yellow]" if rain_sensor else "[dim]Clear[/dim]"
+        if not _ctx.get("rain_sensor"):
+            sensor_str = None
+        elif rain_sensor:
+            sensor_str = "[yellow]Triggered[/yellow]"
+        else:
+            sensor_str = "[dim]Clear[/dim]"
         delay_str = f"{rain_delay} day{'s' if rain_delay != 1 else ''}" if rain_delay else "[dim]None[/dim]"
 
         dt = datetime.datetime.combine(device_date, device_time)
@@ -46,13 +51,15 @@ def status():
         table = Table.grid(padding=(0, 2))
         table.add_column(style="bold", min_width=18)
         table.add_column()
-        for label, value in [
+        rows = [
             ("Irrigation", irrigation_str),
-            ("Rain sensor", sensor_str),
             ("Rain delay", delay_str),
             ("Device time", time_str),
             ("Configured zones", zones_str),
-        ]:
+        ]
+        if sensor_str is not None:
+            rows.insert(1, ("Rain sensor", sensor_str))
+        for label, value in rows:
             table.add_row(label, value)
 
         console.print(Panel(table, title="[bold]Controller Status[/bold]", expand=False))
@@ -86,6 +93,10 @@ def zones():
 @app.command()
 def sensor():
     """Show rain sensor state."""
+    if not _ctx.get("rain_sensor"):
+        console.print("Rain sensor: [dim]Not configured[/dim] (set RAINBIRD_RAIN_SENSOR=true to enable)")
+        return
+
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:

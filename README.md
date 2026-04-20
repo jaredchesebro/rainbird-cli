@@ -31,6 +31,7 @@ Create a `.env` file in the project root:
 ```
 RAINBIRD_HOST=<controller-ip>
 RAINBIRD_PASSWORD=<controller-password>
+RAINBIRD_RAIN_SENSOR=true   # Optional: enable only if a rain sensor is wired to the controller
 ```
 
 Credentials can also be passed per-command:
