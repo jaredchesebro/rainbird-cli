@@ -44,7 +44,11 @@ def test(zone: int = typer.Argument(..., help="Zone number to test")):
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                await lib.test_zone(session, _ctx["host"], _ctx["password"], zone)
+                try:
+                    await lib.test_zone(session, _ctx["host"], _ctx["password"], zone)
+                except ValueError as e:
+                    err_console.print(f"[red]Error:[/red] {e}")
+                    raise typer.Exit(1)
             console.print(f"[green]✓[/green] Zone {zone} test started.")
 
     run_async(_run())

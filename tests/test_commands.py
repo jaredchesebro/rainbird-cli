@@ -250,6 +250,15 @@ def test_test_command_calls_lib(mock_session, monkeypatch):
     assert lib_module.test_zone.call_args.args[3] == 3
 
 
+def test_test_command_invalid_zone_exits_nonzero(mock_session, monkeypatch):
+    monkeypatch.setattr(
+        lib_module, "test_zone",
+        AsyncMock(side_effect=ValueError("Zone 9 is not configured on this controller")),
+    )
+    result = runner.invoke(app, ["test", "9"])
+    assert result.exit_code != 0
+
+
 # ── status: sensor ────────────────────────────────────────────────────────────
 
 def test_sensor_command_not_configured(mock_session, monkeypatch):
