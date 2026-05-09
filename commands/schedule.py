@@ -3,8 +3,16 @@
 import aiohttp
 from rich.table import Table
 
-from core import app, console, get_controller, handle_errors, run_async
-from formatting import format_duration, format_frequency
+import lib
+from core import _ctx, app, console, handle_errors, run_async
+
+
+def _fmt_time(t: str) -> str:
+    """Format 'HH:MM' to '6:00 AM' style."""
+    h, m = map(int, t.split(":"))
+    period = "AM" if h < 12 else "PM"
+    h12 = h % 12 or 12
+    return f"{h12}:{m:02d} {period}"
 
 
 @app.command()
@@ -13,25 +21,25 @@ def schedule():
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                controller = await get_controller(session)
-                sched = await controller.get_schedule()
+                data = await lib.get_schedule(session, _ctx["host"], _ctx["password"])
 
-        if not sched.programs:
+        if not data["programs"]:
             console.print("[dim]No programs configured.[/dim]")
             return
 
-        for prog in sched.programs:
-            letter = chr(ord("A") + prog.program)
-            freq_str = format_frequency(prog)
-            starts_str = ", ".join(t.strftime("%-I:%M %p") for t in prog.starts) if prog.starts else "No start times"
+        for prog in data["programs"]:
+            letter = prog["letter"]
+            freq_str = prog["frequency"]
+            starts = prog["start_times"]
+            starts_str = ", ".join(_fmt_time(t) for t in starts) if starts else "No start times"
             header = f"[bold]Program {letter}[/bold] — {freq_str} — {starts_str}"
 
-            if prog.durations:
+            if prog["zones"]:
                 table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
                 table.add_column("Zone", width=6)
                 table.add_column("Duration")
-                for zd in prog.durations:
-                    table.add_row(str(zd.zone), format_duration(zd.duration))
+                for zd in prog["zones"]:
+                    table.add_row(str(zd["zone"]), f"{zd['duration_minutes']} min")
                 console.print(header)
                 console.print(table)
             else:

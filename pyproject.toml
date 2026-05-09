@@ -9,6 +9,7 @@ description = "CLI for Rain Bird ESP-Me irrigation controller"
 requires-python = ">=3.13"
 dependencies = [
     "aiohttp>=3.13",
+    "mcp>=1.0",
     "pyrainbird>=6.3",
     "python-dotenv>=1.2",
     "rich>=15.0",
@@ -16,7 +17,8 @@ dependencies = [
 ]
 
 [project.scripts]
-rainbird = "rainbird:main"
+rainbird     = "rainbird:main"
+rainbird-mcp = "rainbird_mcp:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]

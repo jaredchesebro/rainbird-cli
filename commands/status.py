@@ -8,7 +8,8 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from core import _ctx, app, console, err_console, get_controller, handle_errors, run_async
+import lib
+from core import _ctx, app, console, handle_errors, run_async
 
 
 @app.command()
@@ -17,35 +18,33 @@ def status():
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                controller = await get_controller(session)
-                irrigating = await controller.get_current_irrigation()
-                zone_states = await controller.get_zone_states()
-                available = await controller.get_available_stations()
-                rain_sensor = await controller.get_rain_sensor_state() if _ctx.get("rain_sensor") else None
-                rain_delay = await controller.get_rain_delay()
-                device_time = await controller.get_current_time()
-                device_date = await controller.get_current_date()
+                data = await lib.get_status(
+                    session, _ctx["host"], _ctx["password"],
+                    rain_sensor=_ctx.get("rain_sensor", False),
+                )
 
-        if irrigating and zone_states.active_set:
-            active_zones = ", ".join(str(z) for z in sorted(zone_states.active_set))
-            irrigation_str = f"[green]Active[/green] — Zone {active_zones}"
-        elif irrigating:
+        if data["irrigating"] and data["active_zones"]:
+            active_zones_str = ", ".join(str(z) for z in data["active_zones"])
+            irrigation_str = f"[green]Active[/green] — Zone {active_zones_str}"
+        elif data["irrigating"]:
             irrigation_str = "[green]Active[/green]"
         else:
             irrigation_str = "[dim]Idle[/dim]"
 
-        if not _ctx.get("rain_sensor"):
+        if data["rain_sensor"] is None:
             sensor_str = None
-        elif rain_sensor:
+        elif data["rain_sensor"]:
             sensor_str = "[yellow]Triggered[/yellow]"
         else:
             sensor_str = "[dim]Clear[/dim]"
+
+        rain_delay = data["rain_delay_days"]
         delay_str = f"{rain_delay} day{'s' if rain_delay != 1 else ''}" if rain_delay else "[dim]None[/dim]"
 
-        dt = datetime.datetime.combine(device_date, device_time)
+        dt = datetime.datetime.fromisoformat(data["device_time"])
         time_str = dt.strftime("%-I:%M %p  %a %b %-d")
 
-        configured = sorted(available.active_set)
+        configured = data["configured_zones"]
         zones_str = ", ".join(str(z) for z in configured) if configured else "[dim]None[/dim]"
 
         table = Table.grid(padding=(0, 2))
@@ -73,18 +72,16 @@ def zones():
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                controller = await get_controller(session)
-                available = await controller.get_available_stations()
-                states = await controller.get_zone_states()
+                data = await lib.get_zones(session, _ctx["host"], _ctx["password"])
 
         table = Table(show_header=True, header_style="bold")
         table.add_column("Zone", style="bold", width=6)
         table.add_column("Status")
-        for zone in sorted(available.active_set):
-            if zone in states.active_set:
-                table.add_row(str(zone), "[green]Active[/green]")
+        for z in data["zones"]:
+            if z["active"]:
+                table.add_row(str(z["zone"]), "[green]Active[/green]")
             else:
-                table.add_row(str(zone), "[dim]Idle[/dim]")
+                table.add_row(str(z["zone"]), "[dim]Idle[/dim]")
         console.print(table)
 
     run_async(_run())
@@ -100,10 +97,9 @@ def sensor():
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                controller = await get_controller(session)
-                active = await controller.get_rain_sensor_state()
+                data = await lib.get_sensor(session, _ctx["host"], _ctx["password"])
 
-        if active:
+        if data["triggered"]:
             console.print("Rain sensor: [yellow]Triggered[/yellow] (irrigation may be paused)")
         else:
             console.print("Rain sensor: [green]Clear[/green]")
@@ -119,15 +115,15 @@ def delay(
     async def _run():
         async with handle_errors():
             async with aiohttp.ClientSession() as session:
-                controller = await get_controller(session)
                 if days is None:
-                    current = await controller.get_rain_delay()
+                    data = await lib.get_delay(session, _ctx["host"], _ctx["password"])
+                    current = data["days"]
                     if current:
                         console.print(f"Rain delay: {current} day{'s' if current != 1 else ''} remaining")
                     else:
                         console.print("Rain delay: [dim]None[/dim]")
                 else:
-                    await controller.set_rain_delay(days)
+                    await lib.set_delay(session, _ctx["host"], _ctx["password"], days)
                     if days == 0:
                         console.print("[green]✓[/green] Rain delay cleared.")
                     else:
